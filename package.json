@@ -7,7 +7,8 @@
     "build": "webpack --config webpack.config.js",
     "start": "cross-env NODE_ENV=production node dist/server/server.js",
     "dev": "npm run build && npm run transpile && node -e \"const app = require('./dist/server/server.js'); app.listen(3000, () => console.log('Server running on http://localhost:3000'))\"",
-    "transpile": "babel src --out-dir dist --presets=@babel/preset-env,@babel/preset-react"
+    "transpile": "babel src --out-dir dist --presets=@babel/preset-env,@babel/preset-react",
+    "vercel-build": "npm run build && npm run transpile"
   },
   "keywords": [],
   "author": "",
