@@ -1,0 +1,6 @@
+.reference-image {
+    width: 100px; /* Or any size you prefer */
+    height: auto;
+    cursor: pointer;
+    /* Additional styling if needed */
+}

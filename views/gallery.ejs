@@ -1,0 +1,52 @@
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Image & Video Gallery</h2>
+    <div class="row masonry-grid">
+        <% media.forEach(item => { %>
+            <div class="col-md-4 masonry-item mb-4">
+                <% if(item.type === 'image') { %>
+                    <!-- Image card -->
+                    <div class="card">
+                        <img src="<%= item.path %>" class="card-img-top" alt="<%= item.title %>" loading="lazy">
+                    </div>
+                <% } else if(item.type === 'video') { %>
+                    <!-- Video card with aspect ratio padding -->
+                    <div class="aspect-ratio-9-16">
+                        <video controls class="card-img-top" preload="metadata">
+                            <source src="<%= item.path %>" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                <% } %>
+            </div>
+        <% }) %>
+    </div>
+</div>
+
+
+<script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const grid = document.querySelector('.masonry-grid');
+        const msnry = new Masonry(grid, {
+            itemSelector: '.masonry-item',
+            columnWidth: '.masonry-item',
+            percentPosition: true
+        });
+
+        // Listen for each image load and layout the grid once the image is loaded
+        const images = grid.querySelectorAll('img');
+        images.forEach(img => {
+            img.addEventListener('load', () => {
+                msnry.layout();
+            });
+        });
+
+        // Layout the grid once all the videos have loaded their metadata
+        const videos = grid.querySelectorAll('video');
+        videos.forEach(video => {
+            video.addEventListener('loadedmetadata', () => {
+                msnry.layout();
+            });
+        });
+    });
+</script>

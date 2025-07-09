@@ -1,0 +1,72 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container">
+      <a class="navbar-brand" href="/">
+          <img src="/images/mpdecalslogo.jpeg" alt="Dirtbike Customization Logo" height="60">
+      </a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ml-auto">
+              <li class="nav-item active">
+                  <a class="nav-link" href="/">Home</a>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link" href="/gallery">Gallery</a>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link" href="/form">Customize and Buy</a>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link" href="/contact">Contact</a>
+              </li>
+              <!-- Add other navigation links as needed -->
+          </ul>
+      </div>
+  </div>
+</nav>
+
+<script>
+  document.querySelector('.navbar-toggler').addEventListener('click', function() {
+    const navbarMenu = document.querySelector('#navbarNav');
+    if (navbarMenu.classList.contains('show')) {
+        // Collapsing the menu
+        navbarMenu.style.height = '0px'; // Start collapsing
+
+        // Once the transition is complete, remove the 'show' class
+        navbarMenu.addEventListener('transitionend', function handler() {
+            navbarMenu.classList.remove('show');
+            navbarMenu.removeEventListener('transitionend', handler);
+        });
+    } else {
+        // Expanding the menu
+        navbarMenu.classList.add('show');
+        navbarMenu.style.height = 'auto';
+        let expandedHeight = navbarMenu.scrollHeight + 'px'; // Get the full height of the content
+        navbarMenu.style.height = '0px'; // Reset the height
+        
+        // Start a timer to ensure the next lines are not executed immediately
+        setTimeout(() => {
+            navbarMenu.style.height = expandedHeight;
+        }, 0);
+    }
+});
+</script>
+
+<style>
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    transition: height 0.3s ease-out;
+    overflow: hidden; /* This will ensure the content is hidden during the slide effect */
+  }
+
+/* By default, the menu will be hidden */
+  .navbar-collapse:not(.show) {
+    height: 0 !important;
+  }
+
+  #navbarNav {
+    margin-top: 10px;
+  }
+}
+</style>

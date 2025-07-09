@@ -1,0 +1,72 @@
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 4px solid #000;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.success-page {
+    background-color: black;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    padding: 2rem;
+}
+
+.details-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.success-message {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: red;
+    padding: 1rem;
+    font-weight: 600;
+}
+
+.success-description {
+    color: white;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 1rem;
+}
+
+.go-home-link {
+    background-color: #125cfc;
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    border-radius: 10px;
+}
+
+.go-home-link:hover {
+    background-color: #084fe9;
+}
+
+@media (max-width: 768px) {
+    .image-container {
+        display: none; /* Hide the image container */
+    }
+}

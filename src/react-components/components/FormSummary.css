@@ -1,0 +1,64 @@
+.form-summary {
+    padding: 20px;
+    border-radius: 5px;
+    max-width: 100%;
+    margin: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+} 
+
+.form-summary table {
+    width: 100%;
+}
+
+.form-summary th, .form-summary td {
+    border: 1px solid #888;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.form-summary th {
+    color: red;
+    background-color: #111; /* Darker background for the header */
+    font-weight: 900;
+}
+
+.form-summary td:first-child {
+    color: #125cfc;
+    font-weight: bold;
+    background-color: #333; /* Slightly lighter than the header */
+}
+
+.form-summary td:not(:first-child) {
+    color: white;
+    font-weight: bold;
+    background-color: #333; /* Slightly lighter than the header */
+}
+
+.form-summary img {
+    max-width: 100px;
+    height: auto;
+    margin-right: 10px;
+    border-radius: 5px;
+}
+
+.dashed-list {
+    text-indent: -1em;
+    padding-left: 1.5em;  /* Adjusted to provide a bit more space for the dash */
+    display: block;
+}
+
+.dashed-list::before {
+    content: "-";
+    margin-right: 0.5em;  /* Adds some spacing between the dash and the content */
+}
+
+td.step-divider:first-child {
+    background-color: #222; /* Choose your desired background color for the step divider */
+    text-align: center;
+    font-weight: bold;
+    color: red; /* Choose your desired text color for the step divider */
+    padding: 10px 0; /* Adds some padding for visual separation */
+    border-top: 2px solid #444; /* Adds a border on top for more visual separation */
+}
+
+
