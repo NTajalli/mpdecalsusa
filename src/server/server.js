@@ -12,8 +12,7 @@ const multer = require('multer');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
-const FormData = require('form-data');
-const Mailgun = require('mailgun.js');
+const nodemailer = require('nodemailer');
 const MemoryStore = require('session-memory-store')(session);
 const AWS = require('aws-sdk');
 const archiver = require('archiver');
@@ -171,13 +170,13 @@ app.get('/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         services: {
-            mailgun: mg ? 'available' : 'unavailable',
+            gmail: transporter ? 'available' : 'unavailable',
             aws: process.env.ACCESS_KEY_ID ? 'configured' : 'not configured'
         },
         environment: process.env.NODE_ENV || 'development'
     };
     
-    const allServicesOk = health.services.mailgun === 'available' && health.services.aws === 'configured';
+    const allServicesOk = health.services.gmail === 'available' && health.services.aws === 'configured';
     
     res.status(allServicesOk ? 200 : 503).json(health);
 });
@@ -241,55 +240,55 @@ app.post('/save-form-data', (req, res) => {
 
 
 
-// Mailgun Setup - Initialize at startup with proper error handling
-const mailgun = new Mailgun(FormData);
-let mg = null;
+// Gmail SMTP Setup - Initialize at startup with proper error handling
+let transporter = null;
 
-function initializeMailgun() {
-    const apiKey = process.env.MAILGUN_API_KEY || process.env.API_KEY;
-    const domain = process.env.MAILGUN_DOMAIN;
+function initializeGmailSMTP() {
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
     
-    if (!apiKey) {
-        console.error('⚠️  WARNING: MAILGUN_API_KEY not found. Email functionality will be disabled.');
+    if (!gmailUser) {
+        console.error('⚠️  WARNING: GMAIL_USER not found. Email functionality will be disabled.');
         return null;
     }
     
-    if (!domain) {
-        console.error('⚠️  WARNING: MAILGUN_DOMAIN not found. Email functionality will be disabled.');
+    if (!gmailAppPassword) {
+        console.error('⚠️  WARNING: GMAIL_APP_PASSWORD not found. Email functionality will be disabled.');
         return null;
     }
     
     try {
-        return mailgun.client({
-            username: 'api',
-            key: apiKey
-            // When you have an EU-domain, you must specify the endpoint:
-            // url: "https://api.eu.mailgun.net"
+        return nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: gmailUser,
+                pass: gmailAppPassword
+            }
         });
     } catch (error) {
-        console.error('❌ Failed to initialize Mailgun:', error.message);
+        console.error('❌ Failed to initialize Gmail SMTP:', error.message);
         return null;
     }
 }
 
-// Initialize Mailgun at startup
-mg = initializeMailgun();
+// Initialize Gmail SMTP at startup
+transporter = initializeGmailSMTP();
 
 // Startup logging
 console.log('🚀 MP Decals USA Server Starting...');
-console.log('📧 Email Service:', mg ? '✅ Ready' : '❌ Unavailable');
+console.log('📧 Email Service:', transporter ? '✅ Ready' : '❌ Unavailable');
 console.log('☁️  AWS S3:', process.env.ACCESS_KEY_ID ? '✅ Configured' : '❌ Not configured');
 console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
-if (mg) {
-    console.log('📬 Mailgun Domain:', process.env.MAILGUN_DOMAIN || 'Not set');
+if (transporter) {
+    console.log('📬 Gmail User:', process.env.GMAIL_USER || 'Not set');
     console.log('📮 From Email:', process.env.FROM_EMAIL || 'Not set');
 }
 
-function getMailgunClient() {
-    if (!mg) {
+function getEmailTransporter() {
+    if (!transporter) {
         throw new Error('Email service is not available. Please contact the administrator.');
     }
-    return mg;
+    return transporter;
 }
 
 app.post('/contact', async (req, res) => {
@@ -297,14 +296,14 @@ app.post('/contact', async (req, res) => {
 
     try {
         // Check if email service is available
-        if (!mg) {
+        if (!transporter) {
             console.error('Contact form submission failed: Email service not available');
             return res.redirect('/contact?success=false&error=service');
         }
 
-        const data = await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
+        const mailOptions = {
             from: process.env.FROM_EMAIL,
-            to: [process.env.TO_EMAIL],
+            to: process.env.TO_EMAIL,
             subject: `New Contact Message from ${name}`,
             html: `
                 <h1 style="color: #004aad;">Contact Form Submission</h1>
@@ -322,9 +321,10 @@ app.post('/contact', async (req, res) => {
                 </ol>
                 <p style="font-size: 16px;">Please ensure a prompt and courteous response to maintain our high standards of customer service.</p>
                 `
-        });
+        };
 
-        console.log('Email sent successfully:', data);
+        const info = await getEmailTransporter().sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
         res.redirect('/contact?success=true');
     } catch (error) {
         console.error('Error sending email:', error);
@@ -337,7 +337,7 @@ let recentFiles = [];
 app.post('/send-email', async (req, res) => {
     try {
         // Check if email service is available
-        if (!mg) {
+        if (!transporter) {
             console.error('Form submission failed: Email service not available');
             return res.status(503).json({ 
                 error: 'Email service is currently unavailable. Please try again later.' 
@@ -368,9 +368,9 @@ app.post('/send-email', async (req, res) => {
         const htmlS3Url = await uploadToS3(htmlContent, htmlKey, 'text/html');
 
         // 4. Send an email with the S3 link to the HTML content
-        await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
+        const mailOptions1 = {
             from: process.env.FROM_EMAIL,
-            to: [process.env.TO_EMAIL],
+            to: process.env.TO_EMAIL,
             subject: 'New Custom Graphics Design Request Received',
             html: `
                 <h1 style="color: #004aad;">New Design Request Notification</h1>
@@ -386,13 +386,15 @@ app.post('/send-email', async (req, res) => {
                     <li>Prepare a preliminary design mockup based on the request.</li>
                 </ol>
                 `
-        });
+        };
+
+        await getEmailTransporter().sendMail(mailOptions1);
 
         console.log("Form email sent successfully");
 
         const msg2 = {
             from: process.env.FROM_EMAIL,
-            to: [formData.email],
+            to: formData.email,
             subject: "We've Received Your Design Request - MpDecals USA",
             html: `
                 <p>Dear ${formData.name},</p>
@@ -410,23 +412,24 @@ app.post('/send-email', async (req, res) => {
         };
         
 
-        await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, msg2);
+        await getEmailTransporter().sendMail(msg2);
         console.log("Customer confirmation email sent successfully");
 
         res.status(200).send("Emails sent successfully.");
     } catch (err) {
         console.error("Error in processing form submission:", err);
         try {
-            await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
+            const errorMailOptions = {
                 from: process.env.FROM_EMAIL,
-                to: [process.env.DEV_EMAIL],
+                to: process.env.DEV_EMAIL,
                 subject: 'Form Submission Error - MpDecals USA',
                 html: `
                     <h1>Error in Form Submission</h1>
                     <p>An error occurred during a form submission process.</p>
                     <p>Error Details: ${err.message}</p>
                     `
-            });
+            };
+            await getEmailTransporter().sendMail(errorMailOptions);
             console.log("Error notification sent to developer");
         } catch (emailError) {
             console.error("Error sending error notification to developer:", emailError);

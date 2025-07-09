@@ -19,8 +19,9 @@
 1. Push your code to GitHub
 2. Connect your GitHub repo to Vercel
 3. Set the following environment variables in Vercel:
-   - `SENDGRID_API_KEY`: Your SendGrid API key
-   - `FROM_EMAIL`: Email address to send from
+   - `GMAIL_USER`: Your Gmail address (e.g., mpdecalsusa@gmail.com)
+   - `GMAIL_APP_PASSWORD`: Your Gmail app password (not your regular password)
+   - `FROM_EMAIL`: Email address to send from (should match GMAIL_USER)
    - `TO_EMAIL`: Email address to receive form submissions
    - `DEV_EMAIL`: Developer email for notifications
    - `ACCESS_KEY_ID`: AWS S3 access key
