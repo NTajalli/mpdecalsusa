@@ -1,4 +1,7 @@
-require('dotenv').config();
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
 require('ignore-styles');
 const renderFormSummary = require('./renderFormSummary');
 const express = require('express');
@@ -162,6 +165,23 @@ app.get('/contact', (req, res) => {
     res.render('layout', { body: 'contact', query: req.query });
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    const health = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        services: {
+            mailgun: mg ? 'available' : 'unavailable',
+            aws: process.env.ACCESS_KEY_ID ? 'configured' : 'not configured'
+        },
+        environment: process.env.NODE_ENV || 'development'
+    };
+    
+    const allServicesOk = health.services.mailgun === 'available' && health.services.aws === 'configured';
+    
+    res.status(allServicesOk ? 200 : 503).json(health);
+});
+
 // Debug endpoint
 app.get('/debug/files', (req, res) => {
     const fs = require('fs');
@@ -221,20 +241,68 @@ app.post('/save-form-data', (req, res) => {
 
 
 
-// Mailgun Setup
+// Mailgun Setup - Initialize at startup with proper error handling
 const mailgun = new Mailgun(FormData);
-const mg = mailgun.client({
-    username: 'api',
-    key: process.env.MAILGUN_API_KEY || process.env.API_KEY
-    // When you have an EU-domain, you must specify the endpoint:
-    // url: "https://api.eu.mailgun.net"
-});
+let mg = null;
+
+function initializeMailgun() {
+    const apiKey = process.env.MAILGUN_API_KEY || process.env.API_KEY;
+    const domain = process.env.MAILGUN_DOMAIN;
+    
+    if (!apiKey) {
+        console.error('⚠️  WARNING: MAILGUN_API_KEY not found. Email functionality will be disabled.');
+        return null;
+    }
+    
+    if (!domain) {
+        console.error('⚠️  WARNING: MAILGUN_DOMAIN not found. Email functionality will be disabled.');
+        return null;
+    }
+    
+    try {
+        return mailgun.client({
+            username: 'api',
+            key: apiKey
+            // When you have an EU-domain, you must specify the endpoint:
+            // url: "https://api.eu.mailgun.net"
+        });
+    } catch (error) {
+        console.error('❌ Failed to initialize Mailgun:', error.message);
+        return null;
+    }
+}
+
+// Initialize Mailgun at startup
+mg = initializeMailgun();
+
+// Startup logging
+console.log('🚀 MP Decals USA Server Starting...');
+console.log('📧 Email Service:', mg ? '✅ Ready' : '❌ Unavailable');
+console.log('☁️  AWS S3:', process.env.ACCESS_KEY_ID ? '✅ Configured' : '❌ Not configured');
+console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+if (mg) {
+    console.log('📬 Mailgun Domain:', process.env.MAILGUN_DOMAIN || 'Not set');
+    console.log('📮 From Email:', process.env.FROM_EMAIL || 'Not set');
+}
+
+function getMailgunClient() {
+    if (!mg) {
+        throw new Error('Email service is not available. Please contact the administrator.');
+    }
+    return mg;
+}
 
 app.post('/contact', async (req, res) => {
     const { name, email, message } = req.body;
 
     try {
-        const data = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+        // Check if email service is available
+        if (!mg) {
+            console.error('Contact form submission failed: Email service not available');
+            return res.redirect('/contact?success=false&error=service');
+        }
+
+        const data = await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
             from: process.env.FROM_EMAIL,
             to: [process.env.TO_EMAIL],
             subject: `New Contact Message from ${name}`,
@@ -268,6 +336,14 @@ let recentFiles = [];
 
 app.post('/send-email', async (req, res) => {
     try {
+        // Check if email service is available
+        if (!mg) {
+            console.error('Form submission failed: Email service not available');
+            return res.status(503).json({ 
+                error: 'Email service is currently unavailable. Please try again later.' 
+            });
+        }
+
         const formData = req.body;
             
         // 1. Upload each image in referenceFiles to S3
@@ -292,7 +368,7 @@ app.post('/send-email', async (req, res) => {
         const htmlS3Url = await uploadToS3(htmlContent, htmlKey, 'text/html');
 
         // 4. Send an email with the S3 link to the HTML content
-        await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+        await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
             from: process.env.FROM_EMAIL,
             to: [process.env.TO_EMAIL],
             subject: 'New Custom Graphics Design Request Received',
@@ -334,14 +410,14 @@ app.post('/send-email', async (req, res) => {
         };
         
 
-        // await mg.messages.create(process.env.MAILGUN_DOMAIN, msg2);
+        await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, msg2);
         console.log("Customer confirmation email sent successfully");
 
         res.status(200).send("Emails sent successfully.");
     } catch (err) {
         console.error("Error in processing form submission:", err);
         try {
-            await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+            await getMailgunClient().messages.create(process.env.MAILGUN_DOMAIN, {
                 from: process.env.FROM_EMAIL,
                 to: [process.env.DEV_EMAIL],
                 subject: 'Form Submission Error - MpDecals USA',
